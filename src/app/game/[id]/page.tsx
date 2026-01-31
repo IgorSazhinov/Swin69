@@ -2,8 +2,6 @@
 
 import dynamic from 'next/dynamic';
 
-// Отключаем SSR для игрового процесса. 
-// Это убирает 100% ошибок гидратации, так как сервер больше не рендерит этот компонент.
 const GameClient = dynamic(() => import('@/components/Game/GameClient'), { 
   ssr: false,
   loading: () => (

@@ -2,9 +2,14 @@ import { useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useGameStore } from '@/store/useGameStore';
 
-export const useGameSocket = (gameId: string, playerId: string, onPreview: (card: any) => void) => {
+export const useGameSocket = (
+  gameId: string, 
+  playerId: string, 
+  updateTable: (data: any, myId: string) => void,
+  onPreview: (card: any) => void
+) => {
   const socketRef = useRef<Socket | null>(null);
-  const { updateTable, addCardToHand } = useGameStore();
+  const { addCardToHand } = useGameStore();
 
   useEffect(() => {
     if (!gameId || !playerId) return;
@@ -15,7 +20,7 @@ export const useGameSocket = (gameId: string, playerId: string, onPreview: (card
     socket.emit("join_game", { gameId, playerId });
 
     socket.on("card_played", (data: any) => {
-      updateTable(data);
+      updateTable(data, playerId);
     });
 
     socket.on("card_drawn", ({ newCard }: any) => {

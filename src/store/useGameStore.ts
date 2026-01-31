@@ -17,7 +17,7 @@ interface GameState {
   winnerId: string | null;
   setHand: (cards: Card[]) => void;
   playCardOptimistic: (cardId: string) => void;
-  updateTable: (data: any) => void;
+  updateTable: (data: any, myId: string) => void;
   addCardToHand: (card: Card) => void;
 }
 
@@ -36,14 +36,13 @@ export const useGameStore = create<GameState>((set) => ({
     isMyTurn: false 
   })),
 
-  updateTable: ({ card, nextPlayerId, allPlayers, status, winnerId }) => {
-    const myId = typeof window !== 'undefined' ? localStorage.getItem("svintus_playerId") : "";
+  updateTable: (data, myId) => {
     set({ 
-      topCard: card && card.type ? { ...card } : null, 
-      isMyTurn: nextPlayerId === myId && status === 'PLAYING', 
-      players: [...allPlayers],
-      status: status,
-      winnerId: winnerId || null
+      topCard: data.card && (data.card.id || data.card.type) ? { ...data.card } : null, 
+      isMyTurn: String(data.nextPlayerId) === String(myId) && data.status === 'PLAYING', 
+      players: data.allPlayers || [],
+      status: data.status,
+      winnerId: data.winnerId || null
     });
   },
 

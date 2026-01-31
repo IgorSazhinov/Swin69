@@ -11,12 +11,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   min-height: 100vh;
-  /* Устанавливаем базовый размер и межстрочный интервал */
   font-size: 24px;
   line-height: 1.2;
 }
 
-/* Делаем все инпуты и кнопки по умолчанию крупными */
 input, button {
   font-size: 24px !important;
 }
