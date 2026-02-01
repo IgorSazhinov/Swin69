@@ -72,10 +72,11 @@ app.prepare().then(() => {
         const state = await getGameState(gameId);
         if (!state || String(state.currentPlayerId) !== String(playerId) || state.game.status !== 'PLAYING') return;
 
+        // Генерируем уникальный ID для этой итерации карты
         const cardToPlace = { 
           ...card, 
           color: chosenColor || card.color, 
-          instanceId: `p_${Date.now()}_${Math.random()}` 
+          instanceId: `play_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` 
         };
 
         const pCount = state.game.players.length;
@@ -83,12 +84,23 @@ app.prepare().then(() => {
         if (card.type === 'perekhryuk') newDir *= -1;
 
         let jump = (card.type === 'zahalomon' || (card.type === 'perekhryuk' && pCount === 2)) ? 2 : 1;
+        if (card.type === 'khapezh') jump = 2;
+
         let nextIdx = (state.game.turnIndex + (newDir * jump)) % pCount;
         if (nextIdx < 0) nextIdx += pCount;
 
         const currentPlayer = state.game.players[state.game.turnIndex];
         const newHand = JSON.parse(currentPlayer.hand || "[]").filter(c => c.id !== card.id);
         const isWin = newHand.length === 0;
+
+        let deck = JSON.parse(state.game.deck || "[]");
+        if (card.type === 'khapezh' && deck.length >= 3) {
+           const victimIdx = (state.game.turnIndex + newDir + pCount) % pCount;
+           const victim = state.game.players[victimIdx];
+           const penalty = deck.splice(0, 3);
+           const victimHand = [...JSON.parse(victim.hand || "[]"), ...penalty];
+           await prisma.player.update({ where: { id: victim.id }, data: { hand: JSON.stringify(victimHand) } });
+        }
 
         await prisma.$transaction([
           prisma.player.update({ where: { id: playerId }, data: { hand: JSON.stringify(newHand) } }),
@@ -99,7 +111,8 @@ app.prepare().then(() => {
               turnIndex: nextIdx, 
               direction: newDir,
               status: isWin ? 'FINISHED' : 'PLAYING',
-              winnerId: isWin ? playerId : null
+              winnerId: isWin ? playerId : null,
+              deck: JSON.stringify(deck)
             } 
           })
         ]);
@@ -124,12 +137,17 @@ app.prepare().then(() => {
         if (deck.length === 0) return;
 
         const topCardOnTable = JSON.parse(state.game.currentCard || "{}");
-        const drawnCard = deck[0]; 
+        // Берем объект карты и сразу даем ему уникальный ID
+        const rawCard = deck[0];
+        const drawnCard = { 
+          ...rawCard, 
+          instanceId: `draw_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` 
+        };
 
         if (!canPlayCard(drawnCard, topCardOnTable)) {
-          const actualCard = deck.shift();
+          deck.shift();
           const player = state.game.players.find(p => String(p.id) === String(playerId));
-          const newHand = [...JSON.parse(player.hand || "[]"), actualCard];
+          const newHand = [...JSON.parse(player.hand || "[]"), drawnCard];
           const nextIdx = (state.game.turnIndex + state.game.direction + state.game.players.length) % state.game.players.length;
 
           await prisma.$transaction([
@@ -137,7 +155,7 @@ app.prepare().then(() => {
             prisma.game.update({ where: { id: gameId }, data: { deck: JSON.stringify(deck), turnIndex: nextIdx } })
           ]);
 
-          socket.emit("card_drawn", { newCard: actualCard });
+          socket.emit("card_drawn", { newCard: drawnCard });
           const final = await getGameState(gameId);
           io.to(gameId).emit("card_played", { card: topCardOnTable, nextPlayerId: final.currentPlayerId, allPlayers: final.playersInfo, status: final.game.status });
         } else {
@@ -152,10 +170,13 @@ app.prepare().then(() => {
         if (!state || String(state.currentPlayerId) !== String(playerId)) return;
 
         let deck = JSON.parse(state.game.deck || "[]");
-        const drawnCard = deck.shift();
+        const drawnCardRaw = deck.shift();
+        if (!drawnCardRaw) return;
+
+        const instanceId = `confirm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
         if (action === 'play') {
-          const cardToPlace = { ...drawnCard, color: chosenColor || drawnCard.color, instanceId: `d_${Date.now()}` };
+          const cardToPlace = { ...drawnCardRaw, color: chosenColor || drawnCardRaw.color, instanceId };
           const nextIdx = (state.game.turnIndex + state.game.direction + state.game.players.length) % state.game.players.length;
           
           await prisma.game.update({
@@ -167,14 +188,14 @@ app.prepare().then(() => {
           io.to(gameId).emit("card_played", { card: cardToPlace, nextPlayerId: final.currentPlayerId, allPlayers: final.playersInfo, status: final.game.status });
         } else {
           const player = state.game.players.find(p => String(p.id) === String(playerId));
-          const newHand = [...JSON.parse(player.hand || "[]"), drawnCard];
+          const newHand = [...JSON.parse(player.hand || "[]"), { ...drawnCardRaw, instanceId }];
           const nextIdx = (state.game.turnIndex + state.game.direction + state.game.players.length) % state.game.players.length;
 
           await prisma.$transaction([
             prisma.player.update({ where: { id: playerId }, data: { hand: JSON.stringify(newHand) } }),
             prisma.game.update({ where: { id: gameId }, data: { deck: JSON.stringify(deck), turnIndex: nextIdx } })
           ]);
-          socket.emit("card_drawn", { newCard: drawnCard });
+          socket.emit("card_drawn", { newCard: { ...drawnCardRaw, instanceId } });
           const final = await getGameState(gameId);
           io.to(gameId).emit("card_played", { card: JSON.parse(final.game.currentCard || "{}"), nextPlayerId: final.currentPlayerId, allPlayers: final.playersInfo, status: final.game.status });
         }
