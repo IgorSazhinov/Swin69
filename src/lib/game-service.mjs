@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-/** Получение полного состояния игры для отправки по сокетам */
 export const getFullGameState = async (gameId) => {
   let game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -10,7 +9,6 @@ export const getFullGameState = async (gameId) => {
   
   if (!game) return null;
 
-  // Автостарт, если зашло 2+ игрока
   if (game.players.length >= 2 && game.status === 'LOBBY') {
     game = await prisma.game.update({
       where: { id: gameId },
@@ -33,11 +31,11 @@ export const getFullGameState = async (gameId) => {
   };
 };
 
-/** Метод выдачи штрафных карт (Хапеж) */
-export const applyPenalty = async (game, direction, deck) => {
+/** Штрафные карты. actingIndex - индекс того, кто кинул Хапеж */
+export const applyPenalty = async (game, direction, deck, actingIndex) => {
   const pCount = game.players.length;
-  // Находим жертву (следующий по направлению)
-  const victimIdx = (game.turnIndex + direction + pCount) % pCount;
+  // Жертва - это следующий игрок после того, кто совершил ход (даже если это был перехват)
+  const victimIdx = (actingIndex + direction + pCount) % pCount;
   const victim = game.players[victimIdx];
   
   const penalty = deck.splice(0, 3);
@@ -48,7 +46,7 @@ export const applyPenalty = async (game, direction, deck) => {
     data: { hand: JSON.stringify(victimHand) }
   });
   
-  return deck; // Возвращаем измененную колоду
+  return deck;
 };
 
 export { prisma };

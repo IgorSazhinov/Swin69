@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
-import { canPlayCard, calculateNextTurn, generateInstanceId } from "./src/lib/game-engine.mjs";
+import { canPlayCard, canIntercept, calculateNextTurn, generateInstanceId, reshuffleDeck } from "./src/lib/game-engine.mjs";
 import { getFullGameState, applyPenalty, prisma } from "./src/lib/game-service.mjs";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -14,7 +14,6 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     
-    // ВХОД В ИГРУ
     socket.on("join_game", async ({ gameId, playerId }) => {
       socket.join(gameId);
       const state = await getFullGameState(gameId);
@@ -29,33 +28,43 @@ app.prepare().then(() => {
       }
     });
 
-    // ХОД КАРТОЙ
     socket.on("play_card", async ({ gameId, card, playerId, chosenColor }) => {
       try {
         const state = await getFullGameState(gameId);
-        if (!state || String(state.currentPlayerId) !== String(playerId) || state.game.status !== 'PLAYING') return;
+        if (!state || state.game.status !== 'PLAYING') return;
+
+        const topCard = JSON.parse(state.game.currentCard || "{}");
+        const isMyTurn = String(state.currentPlayerId) === String(playerId);
+        const isIntercept = canIntercept(card, topCard);
+
+        // Правило перехвата: если не твой ход и это не перехват - отмена
+        if (!isMyTurn && !isIntercept) return;
 
         const cardToPlace = { 
           ...card, 
           color: chosenColor || card.color, 
-          instanceId: generateInstanceId('p') 
+          instanceId: generateInstanceId(isIntercept ? 'intercept' : 'p') 
         };
 
         const pCount = state.game.players.length;
         let newDir = state.game.direction;
         if (card.type === 'perekhryuk') newDir *= -1;
 
-        const nextIdx = calculateNextTurn(state.game.turnIndex, newDir, pCount, card.type);
+        // Находим игрока, который совершил действие (для перехвата это важно)
+        const actingPlayer = state.game.players.find(p => String(p.id) === String(playerId));
+        const actingIndex = actingPlayer.order;
+
+        // Считаем следующий ход ОТ ТОГО, кто положил карту
+        const nextIdx = calculateNextTurn(actingIndex, newDir, pCount, card.type);
         
-        const currentPlayer = state.game.players[state.game.turnIndex];
-        const newHand = JSON.parse(currentPlayer.hand || "[]").filter(c => c.id !== card.id);
+        const newHand = JSON.parse(actingPlayer.hand || "[]").filter(c => c.id !== card.id);
         const isWin = newHand.length === 0;
 
         let deck = JSON.parse(state.game.deck || "[]");
         
-        // ЭФФЕКТ ХАПЕЖА
+        // Хапеж при перехвате тоже работает!
         if (card.type === 'khapezh' && deck.length >= 3) {
-          deck = await applyPenalty(state.game, newDir, deck);
+          deck = await applyPenalty(state.game, newDir, deck, actingIndex);
         }
 
         await prisma.$transaction([
@@ -79,22 +88,33 @@ app.prepare().then(() => {
           nextPlayerId: final.currentPlayerId, 
           allPlayers: final.playersInfo, 
           status: final.game.status,
-          winnerId: final.game.winnerId
+          winnerId: final.game.winnerId,
+          isIntercept // Фронтенд может по этому флагу включить звук/анимацию
         });
       } catch (e) { console.error("PLAY_CARD_ERROR:", e); }
     });
 
-    // ДОБОР КАРТЫ
     socket.on("draw_card", async ({ gameId, playerId }) => {
       try {
         const state = await getFullGameState(gameId);
         if (!state || String(state.currentPlayerId) !== String(playerId)) return;
         
         let deck = JSON.parse(state.game.deck || "[]");
-        if (deck.length === 0) return;
+        
+        // ПЕРЕМЕШИВАНИЕ (RESHUFFLE), если колода пуста
+        if (deck.length === 0) {
+          const discardPile = JSON.parse(state.game.discardPile || "[]");
+          const reshuffled = reshuffleDeck(discardPile);
+          if (!reshuffled) return; // Совсем нет карт
+          deck = reshuffled.newDeck;
+          await prisma.game.update({
+            where: { id: gameId },
+            data: { deck: JSON.stringify(deck), discardPile: JSON.stringify(reshuffled.newDiscardPile) }
+          });
+        }
 
         const topCardOnTable = JSON.parse(state.game.currentCard || "{}");
-        const rawCard = deck[0];
+        const rawCard = deck[0]; 
         const drawnCard = { ...rawCard, instanceId: generateInstanceId('draw') };
 
         if (!canPlayCard(drawnCard, topCardOnTable)) {
@@ -117,7 +137,6 @@ app.prepare().then(() => {
       } catch (e) { console.error("DRAW_CARD_ERROR:", e); }
     });
 
-    // ПОДТВЕРЖДЕНИЕ ХОДА ПОСЛЕ ДОБОРА
     socket.on("confirm_draw", async ({ gameId, playerId, action, chosenColor }) => {
       try {
         const state = await getFullGameState(gameId);
