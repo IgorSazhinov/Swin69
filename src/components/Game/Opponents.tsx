@@ -2,99 +2,131 @@
 
 import { motion } from "framer-motion";
 
-interface Opponent {
+interface PlayerInfo {
   id: string;
   name: string;
   cardCount: number;
   isTurn: boolean;
 }
 
-export const Opponents = ({ players }: { players: Opponent[] }) => {
+interface OpponentsProps {
+  players: PlayerInfo[];
+  currentPlayerId: string;
+}
+
+export const Opponents = ({ players, currentPlayerId }: OpponentsProps) => {
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.isTurn) return -1;
+    if (b.isTurn) return 1;
+    return 0;
+  });
+
   return (
-    <div className="flex flex-col gap-4 items-center justify-center h-full border-r border-white/5 px-[10px]">
-      <div className="w-full flex flex-col gap-4">
-        {players.map((opp) => (
-          <div 
-            key={opp.id} 
-            className={`relative w-full flex flex-col p-6 rounded-[50px] bg-black/40 border-2 backdrop-blur-xl transition-all duration-500 ${
-              opp.isTurn 
-                ? 'border-orange-500 shadow-[0_0_60px_rgba(234,88,12,0.25)] scale-[1.02] z-10' 
-                : 'border-white/10 opacity-70'
-            }`}
-          >
-            {/* ГОРИЗОНТАЛЬНАЯ ИНФО-ПАНЕЛЬ ПО ЦЕНТРУ */}
-            <div className="flex items-center justify-center gap-6 mb-8 w-full">
-              
-              {/* ИМЯ */}
-              <div className="text-white font-black text-2xl uppercase tracking-tighter truncate max-w-[140px] text-right flex-1">
-                {opp.name}
-              </div>
+    <div className="flex flex-col gap-4 items-center justify-center h-full w-full px-[10px] overflow-y-auto no-scrollbar">
+      <div className="w-full flex flex-col gap-6">
+        {sortedPlayers.map((opp) => {
+          const isMe = String(opp.id) === String(currentPlayerId);
+          const maxVisibleCards = 15;
+          const hasExtra = opp.cardCount > maxVisibleCards;
+          const visibleCount = Math.min(opp.cardCount, maxVisibleCards);
 
-              {/* СТАТУС / РАЗДЕЛИТЕЛЬ */}
-              <div className="flex flex-col items-center min-w-[100px]">
-                <div className={`text-[10px] font-black uppercase tracking-[0.3em] italic mb-1 ${
-                  opp.isTurn ? 'text-orange-500 animate-pulse' : 'text-white/10'
-                }`}>
-                  {opp.isTurn ? 'ХОДИТ' : 'ЖДЕТ'}
+          // Константы для позиционирования
+          const cardWidth = 45;
+          const cardOverlap = 20; 
+
+          return (
+            <motion.div 
+              key={opp.id} 
+              layout
+              className={`relative w-full flex flex-col p-6 rounded-[50px] border-2 backdrop-blur-xl transition-all duration-500 ${
+                opp.isTurn 
+                  ? 'border-orange-500 shadow-[0_0_60px_rgba(234,88,12,0.3)] scale-[1.02] z-10' 
+                  : 'border-white/10 opacity-80'
+              } ${
+                isMe 
+                  ? 'animate-premium-gradient shadow-[inset_0_0_30px_rgba(234,88,12,0.2)] text-white' 
+                  : 'bg-black/40'
+              }`}
+              style={isMe ? {
+                background: "linear-gradient(270deg, #4c1d95, #7c2d12, #451a03, #7c2d12)",
+                backgroundSize: "400% 400%"
+              } : {}}
+            >
+              {/* ИНФО-ПАНЕЛЬ */}
+              <div className="flex items-center justify-center gap-6 mb-8 w-full z-20">
+                <div className={`font-black text-2xl uppercase tracking-tighter truncate max-w-[140px] text-right flex-1 ${isMe ? 'text-orange-400' : 'text-white'}`}>
+                  {opp.name}
                 </div>
-                <div className="h-[2px] w-full bg-white/10 rounded-full" />
-              </div>
 
-              {/* КОЛИЧЕСТВО КАРТ */}
-              <div className="flex items-center gap-3 flex-1 text-left">
-                <span className="text-orange-500 font-black text-4xl leading-none">
-                  {opp.cardCount}
-                </span>
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-tight">
-                  КАРТ
-                </span>
-              </div>
-
-            </div>
-
-            {/* ВЕЕР КАРТ ПО ЦЕНТРУ */}
-            <div className="relative h-[80px] w-full flex items-center justify-center overflow-visible">
-              {Array.from({ length: Math.min(opp.cardCount, 15) }).map((_, i, arr) => {
-                const total = arr.length;
-                const step = total > 1 ? Math.min(25, 240 / total) : 0;
-                const offset = (i - (total - 1) / 2) * step;
-                const rotation = (i - (total - 1) / 2) * (total > 10 ? 3 : 5);
-
-                return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute w-[50px] h-[72px] rounded-[10px] border-2 border-white/20 bg-[#0f172a] shadow-2xl flex items-center justify-center"
-                    style={{
-                      left: `calc(50% + ${offset}px)`,
-                      transform: `translateX(-50%) rotate(${rotation}deg)`,
-                      zIndex: i,
-                      backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.02) 5px, rgba(255,255,255,0.02) 10px)`
-                    }}
-                  >
-                    <span className="text-[10px] opacity-10 grayscale">🐽</span>
-                  </motion.div>
-                );
-              })}
-              
-              {opp.cardCount > 15 && (
-                <div className="absolute -right-2 bottom-0 bg-orange-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xl z-50 border-2 border-white/20">
-                  +{opp.cardCount - 15}
+                <div className="flex flex-col items-center min-w-[100px]">
+                  <div className={`text-[10px] font-black uppercase tracking-[0.3em] italic mb-1 ${
+                    opp.isTurn ? 'text-orange-500 animate-pulse' : 'text-white/10'
+                  }`}>
+                    {opp.isTurn ? 'ХОДИТ' : 'ЖДЕТ'}
+                  </div>
+                  <div className={`h-[2px] w-full rounded-full ${opp.isTurn ? 'bg-orange-500 shadow-[0_0_15px_#ea580c]' : 'bg-white/10'}`} />
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
 
-        {players.length === 0 && (
-          <div className="py-20 flex flex-col items-center gap-4 opacity-10">
-            <div className="text-white font-black uppercase text-center tracking-[0.5em] italic text-xs">
-              ПОИСК ИГРОКОВ
-            </div>
-          </div>
-        )}
+                <div className="flex items-center gap-3 flex-1 text-left">
+                  <span className="text-orange-500 font-black text-4xl leading-none">
+                    {opp.cardCount}
+                  </span>
+                  <span className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-tight">
+                    КАРТ
+                  </span>
+                </div>
+              </div>
+
+              {/* ЗОНА КАРТ (ГРЕБЕНКА БЕЗ НАКЛОНА) */}
+              <div className="relative h-[70px] w-full flex items-center justify-center overflow-visible">
+                <div 
+                  className="relative flex items-center"
+                  style={{ width: `${(visibleCount - 1) * cardOverlap + cardWidth}px` }}
+                >
+                  {Array.from({ length: visibleCount }).map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-[45px] h-[65px] rounded-[8px] border-2 border-white/20 bg-[#0f172a] shadow-md"
+                      style={{
+                        left: `${i * cardOverlap}px`,
+                        zIndex: i,
+                        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.02) 5px, rgba(255,255,255,0.02) 10px)`
+                      }}
+                    >
+                       <div className="w-full h-full flex items-center justify-center opacity-10 grayscale text-[10px]">🐽</div>
+                    </motion.div>
+                  ))}
+
+                  {/* ИНДИКАТОР ЛИШНИХ КАРТ - КРУПНЫЙ (32px+) И СПРАВА */}
+                  {hasExtra && (
+                    <motion.div 
+                      initial={{ scale: 0, x: -10 }}
+                      animate={{ scale: 1, x: 0 }}
+                      className="absolute flex items-center justify-center bg-orange-600 text-white font-black rounded-full shadow-[0_0_20px_rgba(234,88,12,0.5)] border-2 border-white/60 z-50 min-w-[32px] h-[32px] px-2 text-sm"
+                      style={{ 
+                        left: `${(visibleCount - 1) * cardOverlap + cardWidth + 12}px` 
+                      }}
+                    >
+                      +{opp.cardCount - maxVisibleCards}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
+
+      <style jsx global>{`
+        @keyframes premium-gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-premium-gradient {
+          animation: premium-gradient 5s ease infinite;
+        }
+      `}</style>
     </div>
   );
 };
