@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { formatCardsCount } from "@/lib/utils";
 
 interface PlayerInfo {
   id: string;
@@ -13,12 +14,14 @@ interface OpponentsProps {
   players: PlayerInfo[];
   currentPlayerId: string;
   direction?: number;
+  pendingPenalty?: number;
 }
 
 export const Opponents = ({
   players,
   currentPlayerId,
   direction = 1,
+  pendingPenalty = 0,
 }: OpponentsProps) => {
   // 1. Учитываем направление хода: если -1 (реверс), разворачиваем исходный список
   const directionalPlayers =
@@ -41,6 +44,7 @@ export const Opponents = ({
         <AnimatePresence mode="popLayout">
           {sortedPlayers.map((opp) => {
             const isMe = String(opp.id) === String(currentPlayerId);
+            const isTakingPenalty = opp.isTurn && pendingPenalty > 0;
             const maxVisibleCards = 15;
             const hasExtra = opp.cardCount > maxVisibleCards;
             const visibleCount = Math.min(opp.cardCount, maxVisibleCards);
@@ -88,17 +92,26 @@ export const Opponents = ({
 
                   <div className="flex flex-col items-center min-w-[100px]">
                     <div
-                      className={`text-[10px] font-black uppercase tracking-[0.3em] italic mb-1 ${
-                        opp.isTurn
+                      className={`text-[10px] font-black uppercase tracking-[0.2em] italic mb-1 ${
+                        isTakingPenalty
+                          ? "text-red-500 animate-bounce"
+                          : opp.isTurn
                           ? "text-orange-500 animate-pulse"
                           : "text-white/10"
                       }`}
                     >
-                      {opp.isTurn ? "ХОДИТ" : "ЖДЕТ"}
+                      {isTakingPenalty
+                        ? "БЕРЕТ ХАПЕЖ"
+                        : opp.isTurn
+                        ? "ХОДИТ"
+                        : "ЖДЕТ"}
                     </div>
+
                     <div
-                      className={`h-[2px] w-full rounded-full ${
-                        opp.isTurn
+                      className={`h-[2px] w-full rounded-full transition-all duration-500 ${
+                        isTakingPenalty
+                          ? "bg-red-600 shadow-[0_0_15px_#dc2626]"
+                          : opp.isTurn
                           ? "bg-orange-500 shadow-[0_0_15px_#ea580c]"
                           : "bg-white/10"
                       }`}
@@ -110,7 +123,7 @@ export const Opponents = ({
                       {opp.cardCount}
                     </span>
                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-tight">
-                      КАРТ
+                      {formatCardsCount(opp.cardCount)}
                     </span>
                   </div>
                 </div>
