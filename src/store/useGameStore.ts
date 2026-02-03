@@ -25,9 +25,11 @@ interface GameState {
   pendingPenalty: number;
   direction: number;
   winnerId: string | null;
+  chloppedPlayerIds: string[];
   setHand: (cards: Card[]) => void;
   updateTable: (data: any, myId: string) => void;
   playCardOptimistic: (cardId: string) => void;
+  setChlopped: (playerId: string) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -39,12 +41,17 @@ export const useGameStore = create<GameState>((set) => ({
   pendingPenalty: 0,
   direction: 1,
   winnerId: null,
+  chloppedPlayerIds: [],
 
   setHand: (cards) => set({ hand: [...cards] }),
   
   playCardOptimistic: (cardId) => set((state) => ({
     hand: state.hand.filter(c => c.id !== cardId),
     isMyTurn: false 
+  })),
+
+  setChlopped: (playerId) => set((state) => ({
+    chloppedPlayerIds: [...state.chloppedPlayerIds, playerId]
   })),
 
   updateTable: (data, myId) => {
@@ -55,7 +62,8 @@ export const useGameStore = create<GameState>((set) => ({
       status: data.status,
       pendingPenalty: Number(data.pendingPenalty) || 0,
       direction: data.direction || 1,
-      winnerId: data.winnerId || null
+      winnerId: data.winnerId || null,
+      chloppedPlayerIds: data.status === 'CHLOPKOPIT' ? (data.chloppedPlayerIds || []) : []
     });
   },
 }));

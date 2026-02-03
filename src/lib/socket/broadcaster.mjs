@@ -14,7 +14,9 @@ export const broadcastFullState = async (io, gameId) => {
       status: state.game.status,
       winnerId: state.game.winnerId,
       direction: state.game.direction,
-      pendingPenalty: state.game.pendingPenalty
+      pendingPenalty: state.game.pendingPenalty,
+      // ПЕРЕДАЧА МАССИВА ХЛОПКОВ НА ФРОНТ
+      chloppedPlayerIds: state.game.chloppedPlayerIds || []
     });
 
     // 2. Личное состояние рук

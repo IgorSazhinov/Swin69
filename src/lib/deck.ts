@@ -27,7 +27,7 @@ export const generateDeck = (): Card[] => {
 
     // 2. ЦВЕТНЫЕ СПЕЦКАРТЫ (по 2 штуки каждого типа на каждый цвет)
     const specialTypes: CardType[] = [
-      'khlopokopyt', 
+      'khlopkopit', 
       'tikhohryun', 
       'perekhryuk', 
       'zakhrapin', 

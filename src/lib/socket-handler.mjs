@@ -3,6 +3,7 @@ import { handlePlayCard } from "./socket/handlers/playCard.mjs";
 import { handleTakePenalty } from "./socket/handlers/takePenalty.mjs";
 import { handleDrawCard } from "./socket/handlers/drawCard.mjs";
 import { handleConfirmDraw } from "./socket/handlers/confirmDraw.mjs";
+import { handleChlop } from "./socket/handlers/chlop.mjs";
 
 export const registerSocketHandlers = (io) => {
   io.on("connection", (socket) => {
@@ -18,6 +19,7 @@ export const registerSocketHandlers = (io) => {
     socket.on("take_penalty", (data) => handleTakePenalty(io, socket, data));
     socket.on("draw_card", (data) => handleDrawCard(io, socket, data));
     socket.on("confirm_draw", (data) => handleConfirmDraw(io, socket, data));
+    socket.on("chlop", (data) => handleChlop(io, socket, data));
 
     socket.on("disconnect", () => console.log("<<< [SOCKET] Disconnected"));
   });

@@ -9,44 +9,42 @@ export const useGameSocket = (
   onPreview: (card: any) => void
 ) => {
   const socketRef = useRef<Socket | null>(null);
-  const { setHand } = useGameStore();
+  const { setHand, setChlopped } = useGameStore(); // Добавили setChlopped
 
   useEffect(() => {
     if (!gameId || !playerId) return;
     
-    // Подключаемся к сокету
     socketRef.current = io();
     const socket = socketRef.current;
 
     socket.emit("join_game", { gameId, playerId });
 
-    // Слушатель обновления стола
     socket.on("card_played", (data: any) => {
       updateTable(data, playerId);
     });
 
-    // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ РУКИ (Критично для Хапежа)
     socket.on("hand_updated", ({ hand }: any) => {
       console.log("[SOCKET] Hand updated from server");
       setHand(hand);
-    });
-
-    socket.on("card_drawn", ({ newCard }: any) => {
-      // Можно использовать для анимации, но hand_updated синхронизирует всё
     });
 
     socket.on("drawn_card_preview", ({ card }: any) => {
       onPreview(card);
     });
 
-    socket.on("start_khlopokopyt", (data: any) => {
+    // Добавили слушатель для галочек Хлопкопыта
+    socket.on("player_chlopped", ({ playerId: chloppedId }: any) => {
+      setChlopped(chloppedId);
+    });
+
+    socket.on("start_khlopkopit", (data: any) => {
       console.log("ХЛОПКОПЫТ МОМЕНТ!");
     });
 
     return () => { 
       socket.disconnect(); 
     };
-  }, [gameId, playerId, updateTable, setHand, onPreview]);
+  }, [gameId, playerId, updateTable, setHand, setChlopped, onPreview]);
 
   const sendCard = (card: any, chosenColor?: string) => {
     socketRef.current?.emit("play_card", { gameId, card, playerId, chosenColor });
@@ -56,7 +54,6 @@ export const useGameSocket = (
     socketRef.current?.emit("draw_card", { gameId, playerId });
   };
 
-  // Метод для взятия штрафных карт Хапежа
   const takePenalty = () => {
     socketRef.current?.emit("take_penalty", { gameId, playerId });
   };
@@ -65,5 +62,12 @@ export const useGameSocket = (
     socketRef.current?.emit("confirm_draw", { gameId, playerId, action, chosenColor });
   };
 
-  return { sendCard, drawCard, takePenalty, confirmDraw };
+  // ЭТОЙ ФУНКЦИИ НЕ ХВАТАЛО
+  const sendChlop = () => {
+    console.log("[SOCKET] Sending chlop...");
+    socketRef.current?.emit("chlop", { gameId, playerId });
+  };
+
+  // ДОБАВИЛИ sendChlop В RETURN
+  return { sendCard, drawCard, takePenalty, confirmDraw, sendChlop };
 };

@@ -2,7 +2,7 @@ export type CardColor = 'red' | 'green' | 'blue' | 'yellow' | 'multi';
 
 export type CardType = 
   | 'number' 
-  | 'khlopokopyt' 
+  | 'khlopkopit' 
   | 'tikhohryun' 
   | 'perekhryuk' 
   | 'zakhrapin' 
@@ -49,7 +49,7 @@ export interface ServerToClientEvents {
   
   drawn_card_preview: (data: { card: Card }) => void;
   
-  start_khlopokopyt: (data: { message: string }) => void;
+  start_khlopkopit: (data: { message: string }) => void;
   
   game_error: (data: { message: string }) => void;
 }
@@ -73,5 +73,5 @@ export interface ClientToServerEvents {
     chosenColor?: CardColor; 
   }) => void;
   
-  tap_khlopokopyt: (data: { gameId: string; playerId: string }) => void;
+  tap_khlopkopit: (data: { gameId: string; playerId: string }) => void;
 }

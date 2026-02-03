@@ -48,7 +48,7 @@ export const Card = ({ card, isBack, onClick, disabled, isInsideHand, index = 0,
   
   // Символы для спецкарт
   const symbols: Record<string, string> = {
-    khlopokopyt: "🐾", 
+    khlopkopit: "🐾", 
     tikhohryun: "🤫", 
     perekhryuk: "🔄", 
     zakhrapin: "🚫", 

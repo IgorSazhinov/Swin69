@@ -63,6 +63,11 @@ export const calculateNextTurn = (
 ) => {
   let direction = currentDirection;
 
+  // ХЛОПКОПЫТ: замираем на текущем игроке
+  if (cardType === "khlopkopit") {
+    return { nextIndex: actingPlayerOrder, nextDirection: direction, isStall: true };
+  }
+
   // Меняем направление, если это Перехрюк
   if (cardType === "perekhryuk") {
     direction *= -1;

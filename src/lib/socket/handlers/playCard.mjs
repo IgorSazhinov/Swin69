@@ -11,7 +11,7 @@ export const handlePlayCard = async (io, socket, data) => {
     const actingPlayer = state.game.players.find(p => String(p.id) === String(playerId));
     if (!actingPlayer) return;
 
-    // Если висит штраф, можно кинуть только Хапеж
+    // Если висит штраф (Хапеж), можно кинуть только Хапеж в ответ
     if (state.game.pendingPenalty > 0 && card.type !== 'khapezh') return;
 
     const topCard = JSON.parse(state.game.currentCard || "{}");
@@ -20,7 +20,8 @@ export const handlePlayCard = async (io, socket, data) => {
 
     if (!isMyTurn && !isIntercept) return;
 
-    const { nextIndex, nextDirection } = calculateNextTurn(
+    // Вызываем обновленную функцию из движка
+    const { nextIndex, nextDirection, isStall } = calculateNextTurn(
       actingPlayer.order,
       state.game.direction,
       state.game.players.length,
@@ -33,7 +34,17 @@ export const handlePlayCard = async (io, socket, data) => {
     const isWin = newHand.length === 0;
 
     const discardPile = JSON.parse(state.game.discardPile || "[]");
-    if (state.game.currentCard) discardPile.push(JSON.parse(state.game.currentCard));
+    if (state.game.currentCard) {
+      discardPile.push(JSON.parse(state.game.currentCard));
+    }
+
+    // Определяем статус: если это Хлопкопыт — включаем спецрежим
+    let nextStatus = 'PLAYING';
+    if (isWin) {
+      nextStatus = 'FINISHED';
+    } else if (isStall) {
+      nextStatus = 'CHLOPKOPIT';
+    }
 
     await prisma.$transaction([
       prisma.player.update({ 
@@ -51,14 +62,18 @@ export const handlePlayCard = async (io, socket, data) => {
           turnIndex: nextIndex, 
           direction: nextDirection,
           pendingPenalty: newPenalty,
-          status: isWin ? 'FINISHED' : 'PLAYING',
+          status: nextStatus,
           winnerId: isWin ? playerId : null,
-          discardPile: JSON.stringify(discardPile)
+          discardPile: JSON.stringify(discardPile),
+          // Обнуляем список хлопков
+          chloppedPlayerIds: isStall ? JSON.stringify([]) : undefined
         } 
       })
     ]);
 
     await broadcastFullState(io, gameId);
-    if (card.type === 'khlopokopyt') io.to(gameId).emit("start_khlopokopyt");
-  } catch (e) { console.error("PLAY_CARD_ERROR:", e); }
+
+  } catch (e) { 
+    console.error("[SERVER] PLAY_CARD_ERROR:", e); 
+  }
 };
