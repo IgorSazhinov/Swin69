@@ -40,7 +40,7 @@ export const Opponents = ({
 
   return (
     <div className="flex flex-col gap-4 items-center justify-start h-full w-full px-[10px] overflow-y-auto no-scrollbar py-10">
-      <div className="w-full flex flex-col gap-6 max-w-2xl">
+      <div className="w-full flex flex-col gap-[10px] pt-[10px] max-w-2xl">
         <AnimatePresence mode="popLayout">
           {sortedPlayers.map((opp) => {
             const isMe = String(opp.id) === String(currentPlayerId);
@@ -81,18 +81,18 @@ export const Opponents = ({
                 }
               >
                 {/* ИНФО-ПАНЕЛЬ */}
-                <div className="flex items-center justify-center gap-6 mb-8 w-full z-20">
+                <div className="flex items-center w-full mb-8 z-20 gap-2">
                   <div
-                    className={`font-black text-2xl uppercase tracking-tighter truncate max-w-[140px] text-right flex-1 ${
+                    className={`flex-[2] font-black text-2xl uppercase tracking-tighter truncate text-right ${
                       isMe ? "text-orange-400" : "text-white"
                     }`}
                   >
                     {opp.name}
                   </div>
 
-                  <div className="flex flex-col items-center min-w-[100px]">
+                  <div className="flex-[1] flex flex-col items-center justify-center min-w-0">
                     <div
-                      className={`text-[10px] font-black uppercase tracking-[0.2em] italic mb-1 ${
+                      className={`text-[9px] font-black uppercase tracking-[0.1em] italic mb-1 truncate w-full text-center ${
                         isTakingPenalty
                           ? "text-red-500 animate-bounce"
                           : opp.isTurn
@@ -110,19 +110,19 @@ export const Opponents = ({
                     <div
                       className={`h-[2px] w-full rounded-full transition-all duration-500 ${
                         isTakingPenalty
-                          ? "bg-red-600 shadow-[0_0_15px_#dc2626]"
+                          ? "bg-red-600 shadow-[0_0_10px_#dc2626]"
                           : opp.isTurn
-                          ? "bg-orange-500 shadow-[0_0_15px_#ea580c]"
+                          ? "bg-orange-500 shadow-[0_0_10px_#ea580c]"
                           : "bg-white/10"
                       }`}
                     />
                   </div>
 
-                  <div className="flex items-center gap-3 flex-1 text-left">
+                  <div className="flex-[1] flex items-center justify-start gap-2">
                     <span className="text-orange-500 font-black text-4xl leading-none">
                       {opp.cardCount}
                     </span>
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-tight">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest leading-tight">
                       {formatCardsCount(opp.cardCount)}
                     </span>
                   </div>
