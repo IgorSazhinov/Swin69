@@ -119,7 +119,7 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
       <main className="flex-1 grid grid-cols-3 w-full h-full px-10 items-stretch overflow-visible">
         <div className="w-full flex items-center justify-center overflow-visible border-r border-white/5">
           <div className="w-full h-full py-10">
-            <Opponents players={players} currentPlayerId={playerId} />
+            <Opponents players={players} currentPlayerId={playerId} direction={direction}/>
           </div>
         </div>
 
