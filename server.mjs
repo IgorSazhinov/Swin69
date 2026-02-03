@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
-import { canPlayCard, canIntercept, calculateNextTurn, generateInstanceId, reshuffleDeck } from "./src/lib/game-logic.js";
+import { canPlayCard, canIntercept, calculateNextTurn, generateInstanceId, reshuffleDeck } from "./src/lib/game-engine.mjs";
 import { getFullGameState, applyPenalty, prisma } from "./src/lib/game-service.mjs";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -44,14 +44,15 @@ app.prepare().then(() => {
         const state = await getFullGameState(gameId);
         if (!state || state.game.status !== 'PLAYING') return;
 
+        const actingPlayer = state.game.players.find(p => String(p.id) === String(playerId));
+        if (!actingPlayer) return;
+
         const topCard = JSON.parse(state.game.currentCard || "{}");
-        const isMyTurn = String(state.currentPlayerId) === String(playerId);
+        const isMyTurn = actingPlayer.order === state.game.turnIndex;
         const isIntercept = canIntercept(card, topCard);
 
-        // Если не твой ход и это не перехват — игнорируем
         if (!isMyTurn && !isIntercept) return;
 
-        // Если это спецкарта "Полисвин" (polyhryun), фиксируем выбранный цвет
         const cardToPlace = { 
           ...card, 
           color: chosenColor || card.color, 
@@ -60,30 +61,27 @@ app.prepare().then(() => {
 
         const pCount = state.game.players.length;
         
-        // Расчет направления и следующего индекса через логику движка
         const { nextIndex, nextDirection } = calculateNextTurn(
-          state.game.players.find(p => String(p.id) === String(playerId)).order,
+          actingPlayer.order,
           state.game.direction,
           pCount,
           card.type
         );
 
-        const actingPlayer = state.game.players.find(p => String(p.id) === String(playerId));
         const newHand = JSON.parse(actingPlayer.hand || "[]").filter(c => c.id !== card.id);
         const isWin = newHand.length === 0;
 
         let deck = JSON.parse(state.game.deck || "[]");
         const discardPile = JSON.parse(state.game.discardPile || "[]");
         
-        // Добавляем старую карту в сброс
-        discardPile.push(topCard);
+        if (state.game.currentCard) {
+          discardPile.push(JSON.parse(state.game.currentCard));
+        }
 
-        // Обработка Хапежа (наказание следующему)
-        if (card.type === 'khapezh' && deck.length >= 3) {
+        if (card.type === 'khapezh') {
           deck = await applyPenalty(state.game, nextDirection, deck, actingPlayer.order);
         }
 
-        // Если карта — Хлопкопыт, уведомляем всех о начале мини-игры на скорость
         if (card.type === 'khlopokopyt') {
           io.to(gameId).emit("start_khlopokopyt", { message: "БЕЙ ПО СТОЛУ!" });
         }
@@ -129,7 +127,6 @@ app.prepare().then(() => {
         
         let deck = JSON.parse(state.game.deck || "[]");
         
-        // Перемешивание, если колода пуста
         if (deck.length === 0) {
           const discardPile = JSON.parse(state.game.discardPile || "[]");
           const reshuffled = reshuffleDeck(discardPile);
@@ -148,7 +145,6 @@ app.prepare().then(() => {
         const drawnCard = { ...deck[0], instanceId: generateInstanceId('draw') };
 
         if (!canPlayCard(drawnCard, topCardOnTable)) {
-          // Если карту нельзя сыграть, она просто идет в руку, ход переходит
           deck.shift();
           const player = state.game.players.find(p => String(p.id) === String(playerId));
           const newHand = [...JSON.parse(player.hand || "[]"), drawnCard];
@@ -169,7 +165,6 @@ app.prepare().then(() => {
             direction: finalState.game.direction
           });
         } else {
-          // Если карту МОЖНО сыграть, даем игроку выбор (превью)
           socket.emit("drawn_card_preview", { card: drawnCard });
         }
       } catch (e) { 
@@ -241,7 +236,6 @@ app.prepare().then(() => {
     });
 
     socket.on("tap_khlopokopyt", async ({ gameId }) => {
-      // Здесь будет логика сбора нажатий для определения самого медленного игрока
       console.log(`Player tapped table in game ${gameId}`);
     });
 

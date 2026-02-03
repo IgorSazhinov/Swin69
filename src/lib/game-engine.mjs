@@ -12,27 +12,38 @@ export const canPlayCard = (cardToPlay, topCard) => {
 /** Проверка на ПЕРЕХВАТ (полное совпадение) */
 export const canIntercept = (cardToPlay, topCard) => {
   if (!topCard || !topCard.type) return false;
-  // Полисвин не перехватывается, так как в руке он "бесцветный"
   if (cardToPlay.type === 'polyhryun') return false;
 
   const colorMatch = cardToPlay.color === topCard.color;
   const typeMatch = cardToPlay.type === topCard.type;
-  const valueMatch = String(cardToPlay.value) === String(topCard.value);
 
   if (cardToPlay.type === 'number') {
+    const valueMatch = String(cardToPlay.value) === String(topCard.value);
     return colorMatch && valueMatch;
   }
   return colorMatch && typeMatch;
 };
 
-/** Расчет следующего игрока с учетом прыжков (Захломон/Хапеж) */
-export const calculateNextTurn = (actingPlayerIndex, direction, playerCount, cardType) => {
-  // Если кинули Захломон, Хапеж или Перехрюк в дуэли — следующий пропускает ход
-  let jump = (cardType === 'zahalomon' || (cardType === 'perekhryuk' && playerCount === 2) || cardType === 'khapezh') ? 2 : 1;
-  
-  let nextIdx = (actingPlayerIndex + (direction * jump)) % playerCount;
-  if (nextIdx < 0) nextIdx += playerCount;
-  return nextIdx;
+/** Расчет следующего игрока и направления */
+export const calculateNextTurn = (actingPlayerOrder, currentDirection, playerCount, cardType) => {
+  let nextDirection = currentDirection;
+
+  if (cardType === 'perekhrkyu' || cardType === 'perekhryuk') {
+    if (playerCount > 2) {
+      nextDirection = currentDirection * -1;
+    }
+  }
+
+  const isJump = 
+    cardType === 'zakhrapin' || 
+    cardType === 'zahalomon' || 
+    cardType === 'khapezh' || 
+    ((cardType === 'perekhrkyu' || cardType === 'perekhryuk') && playerCount === 2);
+
+  const step = isJump ? 2 : 1;
+  let nextIndex = (actingPlayerOrder + (nextDirection * step) + playerCount) % playerCount;
+
+  return { nextIndex, nextDirection };
 };
 
 /** Генератор уникальных ключей для React */
@@ -42,7 +53,7 @@ export const generateInstanceId = (prefix = 'id') =>
 /** Логика перемешивания колоды из сброса */
 export const reshuffleDeck = (discardPile) => {
   if (discardPile.length <= 1) return null;
-  const topCard = discardPile.pop(); // Оставляем текущую карту
-  const newDeck = discardPile.sort(() => Math.random() - 0.5);
+  const topCard = discardPile.pop();
+  const newDeck = [...discardPile].sort(() => Math.random() - 0.5);
   return { newDeck, newDiscardPile: [topCard] };
 };

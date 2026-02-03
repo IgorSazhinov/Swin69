@@ -7,7 +7,6 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 /**
  * Получение полного состояния игры для отправки клиентам через сокеты.
- * Если игроков двое и более, а статус LOBBY — автоматически переводит в PLAYING.
  */
 export const getFullGameState = async (gameId) => {
   let game = await prisma.game.findUnique({
@@ -30,37 +29,42 @@ export const getFullGameState = async (gameId) => {
     });
   }
 
-  // Формируем информацию об игроках (скрываем содержимое рук, даем только количество)
-  const playersInfo = game.players.map((p, i) => ({
+  // Формируем информацию об игроках
+  const playersInfo = game.players.map((p) => ({
     id: String(p.id),
     name: p.name,
+    order: p.order,
     cardCount: JSON.parse(p.hand || "[]").length,
-    isTurn: i === game.turnIndex && game.status === "PLAYING"
+    isTurn: p.order === game.turnIndex && game.status === "PLAYING"
   }));
+
+  const currentPlayer = game.players.find(p => p.order === game.turnIndex);
 
   return {
     game,
     playersInfo,
-    currentPlayerId: game.players[game.turnIndex] ? String(game.players[game.turnIndex].id) : null
+    currentPlayerId: currentPlayer ? String(currentPlayer.id) : null
   };
 };
 
 /**
  * Применение штрафа (Хапеж). 
- * actingIndex — индекс игрока, который совершил действие (текущий или перехвативший).
- * direction — текущее направление игры (1 или -1).
  */
-export const applyPenalty = async (game, direction, deck, actingIndex) => {
+export const applyPenalty = async (game, direction, deck, actingOrder) => {
   const pCount = game.players.length;
   
-  // Жертва — это следующий игрок от того, кто положил карту
-  const victimIdx = (actingIndex + direction + pCount) % pCount;
-  const victim = game.players[victimIdx];
+  // Рассчитываем жертву на основе игрового порядка (order)
+  const victimOrder = (actingOrder + direction + pCount) % pCount;
   
-  // Если в колоде меньше 3 карт, нужно было бы сделать решаффл, 
-  // но пока берем столько, сколько есть (максимум 3)
+  // Находим игрока, чей order совпадает с victimOrder
+  const victim = game.players.find(p => p.order === victimOrder);
+  
+  if (!victim) {
+    console.error("APPLY_PENALTY_ERROR: Player not found for order", victimOrder);
+    return deck;
+  }
+  
   const penaltyCards = deck.splice(0, 3);
-  
   const currentHand = JSON.parse(victim.hand || "[]");
   const updatedHand = [...currentHand, ...penaltyCards];
   
@@ -69,12 +73,11 @@ export const applyPenalty = async (game, direction, deck, actingIndex) => {
     data: { hand: JSON.stringify(updatedHand) }
   });
   
-  // Возвращаем похудевшую колоду обратно в логику сервера
   return deck;
 };
 
 /**
- * Удаление игры и игроков (опционально для очистки БД)
+ * Удаление игры и игроков
  */
 export const deleteGame = async (gameId) => {
   return await prisma.$transaction([
