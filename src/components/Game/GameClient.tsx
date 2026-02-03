@@ -29,25 +29,24 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
     status, 
     winnerId, 
     updateTable,
-    direction 
+    direction,
+    pendingPenalty
   } = useGameStore();
   
   const onPreview = useCallback((card: any) => setPreviewCard(card), []);
 
-  const { sendCard, drawCard, confirmDraw } = useGameSocket(
+  const { sendCard, drawCard, confirmDraw, takePenalty } = useGameSocket(
     gameId, 
     playerId || "", 
     updateTable, 
     onPreview
   );
 
-  // Инициализация ID игрока
   useEffect(() => {
     const savedId = localStorage.getItem("svintus_playerId");
     if (savedId) setPlayerId(savedId);
   }, []);
 
-  // Загрузка начальных данных игрока
   useEffect(() => {
     if (!playerId) return;
     fetch(`/api/player/${playerId}`)
@@ -59,6 +58,9 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
   }, [playerId, setHand]);
 
   const handlePlayCard = (card: any) => {
+    // Разрешаем Хапеж даже если висит штраф
+    if (pendingPenalty > 0 && card.type !== 'khapezh') return;
+    
     if (!isMyTurn || status !== 'PLAYING' || !canPlayCard(card, topCard)) return;
     
     if (card.type === 'polyhryun') { 
@@ -70,7 +72,12 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
     }
   };
 
-  const handleAction = (action: 'play' | 'keep' | 'select-color', color?: string) => {
+  const handleAction = (action: 'play' | 'keep' | 'select-color' | 'take-penalty', color?: string) => {
+    if (action === 'take-penalty') {
+      takePenalty();
+      return;
+    }
+
     if (action === 'select-color' && color) {
       if (polyToPlay) { 
         playCardOptimistic(polyToPlay.id); 
@@ -96,16 +103,10 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
     }
   };
 
-  // Механика: передаем ВСЕХ игроков (включая себя) для корректного отображения очереди
-  const allPlayersWithMe = useMemo(() => {
-    return players; 
-  }, [players]);
-
   if (!playerId) return null;
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#064e3b] overflow-hidden flex flex-col justify-between select-none font-sans text-white">
-      {/* ШАПКА */}
       <GameHeader 
         name={playerName} 
         gameId={gameId} 
@@ -115,27 +116,23 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
         direction={direction}
       />
 
-      {/* ОСНОВНАЯ ИГРОВАЯ ЗОНА — Строгое деление на 3 части без схлопывания */}
       <main className="flex-1 grid grid-cols-3 w-full h-full px-10 items-stretch overflow-visible">
-        
-        {/* ПЕРВАЯ ЧАСТЬ (ЛЕВО) — Растягиваем на всю ширину колонки */}
         <div className="w-full flex items-center justify-center overflow-visible border-r border-white/5">
           <div className="w-full h-full py-10">
-            <Opponents players={allPlayersWithMe} currentPlayerId={playerId} />
+            <Opponents players={players} currentPlayerId={playerId} />
           </div>
         </div>
 
-        {/* ВТОРАЯ ЧАСТЬ (ЦЕНТР) — Игровой стол */}
         <div className="w-full flex items-center justify-center overflow-visible">
+          {/* ИСПРАВЛЕНО: canDraw теперь учитывает turn и отсутствие штрафа */}
           <TableCenter 
             topCard={topCard} 
             isMyTurn={isMyTurn} 
-            canDraw={isMyTurn && !previewCard && !isChoosingColor && status === 'PLAYING'} 
+            canDraw={isMyTurn && status === 'PLAYING' && pendingPenalty === 0 && !previewCard} 
             onDraw={drawCard} 
           />
         </div>
 
-        {/* ТРЕТЬЯ ЧАСТЬ (ПРАВО) — Панель действий */}
         <div className="w-full flex items-center justify-center overflow-visible border-l border-white/5">
           <div className="w-full">
             <GameActions 
@@ -147,10 +144,8 @@ export default function GameClient({ params }: { params: Promise<{ id: string }>
             />
           </div>
         </div>
-
       </main>
 
-      {/* РУКА ИГРОКА (ВНИЗУ) */}
       <footer className="w-full flex justify-center pb-12 px-10 items-end min-h-[300px] bg-gradient-to-t from-black/80 to-transparent overflow-visible">
         <div className="flex items-end justify-center overflow-visible max-w-[90vw]">
           <AnimatePresence initial={false} mode="popLayout">

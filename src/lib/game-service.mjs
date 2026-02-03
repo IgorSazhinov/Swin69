@@ -48,32 +48,40 @@ export const getFullGameState = async (gameId) => {
 };
 
 /**
- * Применение штрафа (Хапеж). 
+ * Игрок забирает накопленный штраф из колоды
  */
-export const applyPenalty = async (game, direction, deck, actingOrder) => {
-  const pCount = game.players.length;
+export const executeTakePenalty = async (gameId, playerId) => {
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  const player = await prisma.player.findUnique({ where: { id: playerId } });
   
-  // Рассчитываем жертву на основе игрового порядка (order)
-  const victimOrder = (actingOrder + direction + pCount) % pCount;
+  if (!game || !player || game.pendingPenalty <= 0) return null;
+
+  let deck = JSON.parse(game.deck || "[]");
+  const penaltyCount = game.pendingPenalty;
   
-  // Находим игрока, чей order совпадает с victimOrder
-  const victim = game.players.find(p => p.order === victimOrder);
-  
-  if (!victim) {
-    console.error("APPLY_PENALTY_ERROR: Player not found for order", victimOrder);
-    return deck;
-  }
-  
-  const penaltyCards = deck.splice(0, 3);
-  const currentHand = JSON.parse(victim.hand || "[]");
+  // Извлекаем нужное кол-во карт
+  const penaltyCards = deck.splice(0, penaltyCount);
+  const currentHand = JSON.parse(player.hand || "[]");
   const updatedHand = [...currentHand, ...penaltyCards];
   
-  await prisma.player.update({
-    where: { id: victim.id },
-    data: { hand: JSON.stringify(updatedHand) }
-  });
-  
-  return deck;
+  // После взятия штрафа ход ОБЯЗАТЕЛЬНО переходит к следующему
+  const pCount = await prisma.player.count({ where: { gameId } });
+  const nextIdx = (game.turnIndex + game.direction + pCount) % pCount;
+
+  return await prisma.$transaction([
+    prisma.player.update({
+      where: { id: playerId },
+      data: { hand: JSON.stringify(updatedHand) }
+    }),
+    prisma.game.update({
+      where: { id: gameId },
+      data: { 
+        deck: JSON.stringify(deck), 
+        pendingPenalty: 0, 
+        turnIndex: nextIdx 
+      }
+    })
+  ]);
 };
 
 /**

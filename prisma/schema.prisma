@@ -8,16 +8,17 @@ generator client {
 }
 
 model Game {
-  id          String   @id @default(cuid())
-  status      String   @default("LOBBY") // LOBBY, PLAYING, FINISHED
-  deck        String   @default("[]")
-  discardPile String   @default("[]")
-  currentCard String?
-  direction   Int      @default(1)
-  turnIndex   Int      @default(0)
-  winnerId    String?  // ID победителя
-  players     Player[]
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  status         String   @default("LOBBY")
+  deck           String   @default("[]")
+  discardPile    String   @default("[]")
+  currentCard    String?
+  direction      Int      @default(1)
+  turnIndex      Int      @default(0)
+  pendingPenalty Int      @default(0) // КУДА КЛАДЕМ ШТРАФНЫЕ КАРТЫ
+  winnerId       String?
+  players        Player[]
+  createdAt      DateTime @default(now())
 }
 
 model Player {

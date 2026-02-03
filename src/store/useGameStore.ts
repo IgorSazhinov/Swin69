@@ -1,11 +1,19 @@
 import { create } from 'zustand';
-import { Card } from '@/types/game';
+
+interface Card {
+  id: string;
+  type: string;
+  color: string;
+  value?: string | number;
+  instanceId?: string;
+}
 
 interface PlayerInfo {
   id: string;
   name: string;
   cardCount: number;
   isTurn: boolean;
+  order: number;
 }
 
 interface GameState {
@@ -14,11 +22,12 @@ interface GameState {
   isMyTurn: boolean;
   players: PlayerInfo[];
   status: string;
+  pendingPenalty: number;
+  direction: number;
   winnerId: string | null;
   setHand: (cards: Card[]) => void;
-  playCardOptimistic: (cardId: string) => void;
   updateTable: (data: any, myId: string) => void;
-  addCardToHand: (card: Card) => void;
+  playCardOptimistic: (cardId: string) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -27,6 +36,8 @@ export const useGameStore = create<GameState>((set) => ({
   isMyTurn: false,
   players: [],
   status: 'LOBBY',
+  pendingPenalty: 0,
+  direction: 1,
   winnerId: null,
 
   setHand: (cards) => set({ hand: [...cards] }),
@@ -37,16 +48,14 @@ export const useGameStore = create<GameState>((set) => ({
   })),
 
   updateTable: (data, myId) => {
-    set({ 
-      topCard: data.card && (data.card.id || data.card.type) ? { ...data.card } : null, 
-      isMyTurn: String(data.nextPlayerId) === String(myId) && data.status === 'PLAYING', 
+    set({
+      topCard: data.card && (data.card.id || data.card.type) ? data.card : null,
+      isMyTurn: String(data.nextPlayerId) === String(myId),
       players: data.allPlayers || [],
       status: data.status,
+      pendingPenalty: Number(data.pendingPenalty) || 0,
+      direction: data.direction || 1,
       winnerId: data.winnerId || null
     });
   },
-
-  addCardToHand: (card) => set((state) => ({ 
-    hand: [...state.hand, card] 
-  })),
 }));

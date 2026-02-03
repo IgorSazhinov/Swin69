@@ -12,11 +12,12 @@ export const canPlayCard = (cardToPlay, topCard) => {
 /** Проверка на ПЕРЕХВАТ (полное совпадение) */
 export const canIntercept = (cardToPlay, topCard) => {
   if (!topCard || !topCard.type) return false;
+  // Полисвин не перехватывается, так как в руке он "бесцветный"
   if (cardToPlay.type === 'polyhryun') return false;
 
   const colorMatch = cardToPlay.color === topCard.color;
   const typeMatch = cardToPlay.type === topCard.type;
-
+  
   if (cardToPlay.type === 'number') {
     const valueMatch = String(cardToPlay.value) === String(topCard.value);
     return colorMatch && valueMatch;
@@ -28,19 +29,24 @@ export const canIntercept = (cardToPlay, topCard) => {
 export const calculateNextTurn = (actingPlayerOrder, currentDirection, playerCount, cardType) => {
   let nextDirection = currentDirection;
 
+  // Перехрюк меняет направление (если игроков больше 2)
   if (cardType === 'perekhrkyu' || cardType === 'perekhryuk') {
     if (playerCount > 2) {
       nextDirection = currentDirection * -1;
     }
   }
 
+  // КРИТИЧЕСКИЙ ФИКС:
+  // Для Хапежа шаг ВСЕГДА 1, чтобы ход перешел К ЖЕРТВЕ.
+  // Захрапин по-прежнему перепрыгивает (step = 2).
+  // В дуэли (2 игрока) Перехрюк тоже работает как прыжок (step = 2).
   const isJump = 
     cardType === 'zakhrapin' || 
     cardType === 'zahalomon' || 
-    cardType === 'khapezh' || 
     ((cardType === 'perekhrkyu' || cardType === 'perekhryuk') && playerCount === 2);
 
   const step = isJump ? 2 : 1;
+  
   let nextIndex = (actingPlayerOrder + (nextDirection * step) + playerCount) % playerCount;
 
   return { nextIndex, nextDirection };
@@ -53,7 +59,7 @@ export const generateInstanceId = (prefix = 'id') =>
 /** Логика перемешивания колоды из сброса */
 export const reshuffleDeck = (discardPile) => {
   if (discardPile.length <= 1) return null;
-  const topCard = discardPile.pop();
+  const topCard = discardPile.pop(); 
   const newDeck = [...discardPile].sort(() => Math.random() - 0.5);
   return { newDeck, newDiscardPile: [topCard] };
 };
