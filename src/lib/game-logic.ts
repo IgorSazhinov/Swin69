@@ -3,18 +3,21 @@ import { Card } from "@/types/game";
 /**
  * Валидация возможности обычного хода.
  */
-export const canPlayCard = (cardToPlay: Card, topCard: Card | null): boolean => {
+export const canPlayCard = (
+  cardToPlay: Card,
+  topCard: Card | null
+): boolean => {
   if (!topCard) return true;
 
-  if (cardToPlay.type === 'polyhryun') return true;
+  if (cardToPlay.type === "polyhryun") return true;
 
   if (cardToPlay.color === topCard.color) return true;
 
-  if (cardToPlay.type === 'number' && topCard.type === 'number') {
+  if (cardToPlay.type === "number" && topCard.type === "number") {
     return String(cardToPlay.value) === String(topCard.value);
   }
 
-  if (cardToPlay.type !== 'number' && cardToPlay.type === topCard.type) {
+  if (cardToPlay.type !== "number" && cardToPlay.type === topCard.type) {
     return true;
   }
 
@@ -24,21 +27,24 @@ export const canPlayCard = (cardToPlay: Card, topCard: Card | null): boolean => 
 /**
  * Проверка на ПЕРЕХВАТ (Intercept).
  */
-export const canIntercept = (cardToPlay: Card, topCard: Card | null): boolean => {
+export const canIntercept = (
+  cardToPlay: Card,
+  topCard: Card | null
+): boolean => {
   if (!topCard) return false;
 
-  if (cardToPlay.type === 'polyhryun' && topCard.type === 'polyhryun') {
+  if (cardToPlay.type === "polyhryun" && topCard.type === "polyhryun") {
     return true;
   }
 
-  if (cardToPlay.type === 'polyhryun' || topCard.type === 'polyhryun') {
+  if (cardToPlay.type === "polyhryun" || topCard.type === "polyhryun") {
     return false;
   }
 
   const colorMatch = cardToPlay.color === topCard.color;
   const typeMatch = cardToPlay.type === topCard.type;
 
-  if (cardToPlay.type === 'number') {
+  if (cardToPlay.type === "number") {
     const valueMatch = String(cardToPlay.value) === String(topCard.value);
     return colorMatch && valueMatch;
   }
@@ -50,22 +56,40 @@ export const canIntercept = (cardToPlay: Card, topCard: Card | null): boolean =>
  * Расчет следующего хода и направления.
  */
 export const calculateNextTurn = (
-  actingPlayerOrder: number, 
-  currentDirection: number, 
-  playerCount: number, 
+  actingPlayerOrder: number,
+  currentDirection: number,
+  playerCount: number,
   cardType: string
 ) => {
   let direction = currentDirection;
 
-  if (cardType === 'perekhrkyu') {
-    if (playerCount === 2) {
-      return { nextIndex: actingPlayerOrder, nextDirection: direction };
-    }
+  // Меняем направление, если это Перехрюк
+  if (cardType === "perekhryuk") {
     direction *= -1;
   }
 
-  const step = (cardType === 'zakhrapin' || cardType === 'khapezh') ? 2 : 1;
-  let nextIndex = (actingPlayerOrder + (direction * step) + playerCount) % playerCount;
+  // Определяем длину шага
+  // Захрапин и Хапеж перепрыгивают через одного игрока
+  const step = cardType === "zakhrapin" || cardType === "khapezh" ? 2 : 1;
+
+  let nextIndex;
+  console.log(direction);
+  
+
+  if (playerCount === 2) {
+    // В дуэли любой «шаг 1» (обычная или перехрюк) всегда передает ход другому.
+    // Любой «шаг 2» (захрапин/хапеж) возвращает ход себе.
+    nextIndex =
+      step === 1 ? (actingPlayerOrder === 0 ? 1 : 0) : actingPlayerOrder;
+  } else {
+    // Стандартная логика для 3+ игроков
+    nextIndex = (actingPlayerOrder + direction * step) % playerCount;
+
+    // Исправляем отрицательный результат для JS
+    if (nextIndex < 0) {
+      nextIndex += playerCount;
+    }
+  }
 
   return { nextIndex, nextDirection: direction };
 };
@@ -73,8 +97,10 @@ export const calculateNextTurn = (
 /**
  * Генератор уникальных ID.
  */
-export const generateInstanceId = (prefix = 'id'): string => {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+export const generateInstanceId = (prefix = "id"): string => {
+  return `${prefix}_${Date.now()}_${Math.random()
+    .toString(36)
+    .substring(2, 9)}`;
 };
 
 /**
@@ -85,7 +111,7 @@ export const reshuffleDeck = (discardPile: Card[]) => {
 
   const topCard = discardPile.pop();
   const newDeck = [...discardPile];
-  
+
   for (let i = newDeck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
@@ -93,6 +119,6 @@ export const reshuffleDeck = (discardPile: Card[]) => {
 
   return {
     newDeck,
-    newDiscardPile: [topCard as Card]
+    newDiscardPile: [topCard as Card],
   };
 };

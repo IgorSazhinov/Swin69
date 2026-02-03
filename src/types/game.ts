@@ -4,7 +4,7 @@ export type CardType =
   | 'number' 
   | 'khlopokopyt' 
   | 'tikhohryun' 
-  | 'perekhrkyu' 
+  | 'perekhryuk' 
   | 'zakhrapin' 
   | 'khapezh' 
   | 'polyhryun';

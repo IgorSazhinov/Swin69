@@ -50,7 +50,7 @@ export const Card = ({ card, isBack, onClick, disabled, isInsideHand, index = 0,
   const symbols: Record<string, string> = {
     khlopokopyt: "🐾", 
     tikhohryun: "🤫", 
-    perekhrkyu: "🔄", 
+    perekhryuk: "🔄", 
     zakhrapin: "🚫", 
     polyhryun: "🌈",
     khapezh: "🃏"

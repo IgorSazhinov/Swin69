@@ -29,7 +29,7 @@ export const generateDeck = (): Card[] => {
     const specialTypes: CardType[] = [
       'khlopokopyt', 
       'tikhohryun', 
-      'perekhrkyu', 
+      'perekhryuk', 
       'zakhrapin', 
       'khapezh'
     ];
