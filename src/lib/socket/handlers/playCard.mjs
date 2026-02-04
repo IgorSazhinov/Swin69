@@ -51,6 +51,11 @@ export const handlePlayCard = async (io, socket, data) => {
       isStall
     });
 
+    // ОСОБАЯ ЛОГИКА ДЛЯ ХЛОПКОПЫТА
+    // При хлопкопыте turnIndex должен остаться у текущего игрока (для хлопков)
+    // Но в chlop.mjs мы его потом изменим на следующего игрока
+    const finalNextIndex = isStall ? actingPlayer.order : nextIndex;
+
     let newPenalty = state.game.pendingPenalty + (card.type === 'khapezh' ? 3 : 0);
 
     const currentHand = JSON.parse(actingPlayer.hand || "[]");
@@ -83,18 +88,19 @@ export const handlePlayCard = async (io, socket, data) => {
             color: chosenColor || card.color,
             instanceId: generateInstanceId(isIntercept ? 'int' : 'p')
           }),
-          turnIndex: nextIndex,
+          turnIndex: finalNextIndex, // Используем finalNextIndex
           direction: nextDirection,
           pendingPenalty: newPenalty,
           status: nextStatus,
           winnerId: isWin ? playerId : null,
           discardPile: JSON.stringify(discardPile),
-          // chloppedPlayerIds: isStall ? JSON.stringify([]) : undefined
+          chloppedPlayerIds: isStall ? JSON.stringify([]) : undefined
         }
       })
     ]);
 
-    console.log('[PLAY_CARD] Обновление БД завершено. Новый turnIndex:', nextIndex);
+    console.log('[PLAY_CARD] Обновление БД завершено. Новый turnIndex:', finalNextIndex);
+    console.log('[PLAY_CARD] Новый статус:', nextStatus);
 
     await broadcastFullState(io, gameId);
   } catch (e) {
