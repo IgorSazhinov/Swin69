@@ -43,7 +43,7 @@ export const canIntercept = (cardToPlay, topCard) => {
 /**
  * Расчет следующего хода и направления.
  */
-export const calculateNextTurn = (
+ export const calculateNextTurn = (
   actingPlayerOrder,
   currentDirection,
   playerCount,
@@ -51,8 +51,8 @@ export const calculateNextTurn = (
 ) => {
   let direction = currentDirection;
 
-  // 1. ХЛОПКОПЫТ: замираем на текущем игроке, пока не пройдут хлопки
-  if (cardType === "khlopkopit" || cardType === "khlopokopyt") {
+  // 1. ХЛОПКОПЫТ: замираем на текущем игроке
+  if (cardType === "khlopkopit") {
     return { 
       nextIndex: actingPlayerOrder, 
       nextDirection: direction, 
@@ -67,22 +67,22 @@ export const calculateNextTurn = (
 
   let nextIndex;
 
-  // 3. ЛОГИКА ДЛЯ 2 ИГРОКОВ (Дуэль)
+  // 3. ЛОГИКА ДЛЯ 2 ИГРОКОВ
   if (playerCount === 2) {
     // В дуэли:
-    // Захрапин — ход остается у того же игрока (прыжок через 1)
-    // Хапеж, Перехрюк и обычные карты — ход ВСЕГДА переходит оппоненту
-    const isJump = cardType === "zakhrapin";
-    nextIndex = isJump ? actingPlayerOrder : (actingPlayerOrder === 0 ? 1 : 0);
+    // - Захрапин: ход остается у того же игрока
+    // - Хапеж и другие: ход переходит оппоненту
+    const isZakhrapin = cardType === "zakhrapin";
+    nextIndex = isZakhrapin ? actingPlayerOrder : (actingPlayerOrder === 0 ? 1 : 0);
   } 
   // 4. ЛОГИКА ДЛЯ 3+ ИГРОКОВ
   else {
-    // Хапеж и Захрапин перепрыгивают через одного (step = 2)
-    const step = (cardType === "zakhrapin" || cardType === "khapezh") ? 2 : 1;
+    // ОСНОВНОЕ ИСПРАВЛЕНИЕ: Только захрапин пропускает игрока
+    const step = cardType === "zakhrapin" ? 2 : 1;
     
     nextIndex = (actingPlayerOrder + (direction * step)) % playerCount;
     
-    // Исправление для отрицательных чисел в JavaScript
+    // Исправление для отрицательных чисел
     if (nextIndex < 0) {
       nextIndex += playerCount;
     }
@@ -91,7 +91,7 @@ export const calculateNextTurn = (
   return { 
     nextIndex, 
     nextDirection: direction, 
-    isStall: false 
+    isStall: false // Хапеж не вызывает хлопкопыт
   };
 };
 

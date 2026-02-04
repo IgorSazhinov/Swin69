@@ -33,6 +33,10 @@ export const canIntercept = (
 ): boolean => {
   if (!topCard) return false;
 
+  if (cardToPlay.type === "khapezh" && topCard.type === "khapezh") {
+    return true;
+  }
+
   if (cardToPlay.type === "polyhryun" && topCard.type === "polyhryun") {
     return true;
   }
@@ -55,7 +59,7 @@ export const canIntercept = (
 /**
  * Расчет следующего хода и направления.
  */
-export const calculateNextTurn = (
+ export const calculateNextTurn = (
   actingPlayerOrder: number,
   currentDirection: number,
   playerCount: number,
@@ -73,21 +77,24 @@ export const calculateNextTurn = (
     direction *= -1;
   }
 
-  // Определяем длину шага
-  // Захрапин и Хапеж перепрыгивают через одного игрока
-  const step = cardType === "zakhrapin" || cardType === "khapezh" ? 2 : 1;
+  // ОСНОВНОЕ ИЗМЕНЕНИЕ: Хапеж НЕ должен пропускать игрока!
+  // Только захрапин пропускает игрока
+  const step = cardType === "zakhrapin" ? 2 : 1;
 
   let nextIndex;
-  console.log(direction);
-  
 
   if (playerCount === 2) {
-    // В дуэли любой «шаг 1» (обычная или перехрюк) всегда передает ход другому.
-    // Любой «шаг 2» (захрапин/хапеж) возвращает ход себе.
+    // В дуэли:
+    // - Обычные карты, хапеж, перехрюк: ход другому игроку
+    // - Захрапин: ход остается у текущего (пропускает противника)
     nextIndex =
-      step === 1 ? (actingPlayerOrder === 0 ? 1 : 0) : actingPlayerOrder;
+      cardType === "zakhrapin" ? actingPlayerOrder : (actingPlayerOrder === 0 ? 1 : 0);
   } else {
-    // Стандартная логика для 3+ игроков
+    // Для 3+ игроков:
+    // - Хапеж: следующий игрок (step = 1), но добавляет штраф
+    // - Захрапин: пропускает одного игрока (step = 2)
+    // - Остальные: следующий игрок (step = 1)
+    const step = cardType === "zakhrapin" ? 2 : 1;
     nextIndex = (actingPlayerOrder + direction * step) % playerCount;
 
     // Исправляем отрицательный результат для JS
@@ -96,7 +103,11 @@ export const calculateNextTurn = (
     }
   }
 
-  return { nextIndex, nextDirection: direction };
+  return { 
+    nextIndex, 
+    nextDirection: direction,
+    isStall: false // Хапеж не вызывает хлопкопыт
+  };
 };
 
 /**
