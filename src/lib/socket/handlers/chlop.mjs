@@ -1,11 +1,12 @@
 import { prisma, getFullGameState } from "../../game-service.mjs";
-import { broadcastFullState } from "../broadcaster.mjs";
+import { broadcastFullState, broadcastLogUpdate } from "../broadcaster.mjs";
 import { generateInstanceId } from "../../game-engine.mjs";
+import { logGameAction } from "../../game-log-service.mjs";
 
 export const handleChlop = async (io, socket, data) => {
   const { gameId, playerId } = data;
   
-  console.log('[CHLOP] Начало. Игрок нажал хлоп:', playerId);
+  console.log('[CHLOP] Игрок нажал хлоп:', playerId);
   
   try {
     const state = await getFullGameState(gameId);
@@ -16,19 +17,26 @@ export const handleChlop = async (io, socket, data) => {
     
     console.log('[CHLOP] Текущий статус:', state.game.status);
     console.log('[CHLOP] Текущий turnIndex:', state.game.turnIndex);
-    console.log('[CHLOP] Игроки в игре:', state.game.players.map(p => ({ id: p.id, order: p.order, name: p.name })));
     
     let chloppedIds = state.game.chloppedPlayerIds || [];
     const pId = String(playerId);
     
     console.log('[CHLOP] Уже нажали хлоп:', chloppedIds);
-    console.log('[CHLOP] Текущий игрок нажал:', pId);
     
     if (!chloppedIds.includes(pId)) {
       chloppedIds.push(pId);
       io.to(gameId).emit("player_chlopped", { playerId: pId });
       
       console.log('[CHLOP] Обновленный список хлопов:', chloppedIds);
+      
+      // ЛОГИРОВАНИЕ: Нажатие хлопка
+      const tapLog = await logGameAction(gameId, {
+        playerId,
+        playerName: state.game.players.find(p => String(p.id) === pId)?.name,
+        action: 'chlop_tap'
+      });
+      
+      if (tapLog) await broadcastLogUpdate(io, gameId, tapLog);
       
       // Проверяем, завершился ли раунд хлопков
       const isRoundOver = chloppedIds.length >= state.game.players.length - 1;
@@ -50,21 +58,32 @@ export const handleChlop = async (io, socket, data) => {
           const currentHand = JSON.parse(loser.hand || "[]");
           const newHand = [...currentHand, ...penaltyCards];
           
-          // ОСНОВНОЕ ИСПРАВЛЕНИЕ: Ход ВСЕГДА переходит к следующему игроку
+          // Ход ВСЕГДА переходит к следующему игроку
           const playersCount = state.game.players.length;
-          const nextTurnIndex = (state.game.turnIndex + state.game.direction) % playersCount;
-          // Исправляем для отрицательных значений
-          const fixedNextTurnIndex = nextTurnIndex < 0 ? nextTurnIndex + playersCount : nextTurnIndex;
+          let nextTurnIndex = (state.game.turnIndex + state.game.direction) % playersCount;
+          if (nextTurnIndex < 0) nextTurnIndex += playersCount;
           
-          console.log('[CHLOP] Переход хода после хлопков:', {
+          console.log('[CHLOP] Переход хода после хлопов:', {
             currentTurnIndex: state.game.turnIndex,
             direction: state.game.direction,
             playerCount: playersCount,
             nextTurnIndex: fixedNextTurnIndex,
-            formula: `(${state.game.turnIndex} + ${state.game.direction}) % ${playersCount} = ${fixedNextTurnIndex}`,
             currentPlayer: state.game.players.find(p => p.order === state.game.turnIndex)?.name,
             nextPlayer: state.game.players.find(p => p.order === fixedNextTurnIndex)?.name
           });
+          
+          // ЛОГИРОВАНИЕ: Завершение хлопкопыта
+          const loseLog = await logGameAction(gameId, {
+            playerId: loser.id,
+            playerName: loser.name,
+            action: 'chlop_lose',
+            details: {
+              penaltyCards: 2,
+              chloppedPlayers: chloppedIds.length
+            }
+          });
+          
+          if (loseLog) await broadcastLogUpdate(io, gameId, loseLog);
           
           await prisma.$transaction([
             prisma.player.update({
@@ -77,7 +96,7 @@ export const handleChlop = async (io, socket, data) => {
                 status: 'PLAYING', 
                 deck: JSON.stringify(deck), 
                 chloppedPlayerIds: JSON.stringify([]),
-                turnIndex: fixedNextTurnIndex  // Ход переходит следующему игроку
+                turnIndex: fixedNextTurnIndex
               }
             })
           ]);
@@ -98,7 +117,17 @@ export const handleChlop = async (io, socket, data) => {
     } else {
       console.log('[CHLOP] Игрок уже нажимал хлоп');
     }
+    
   } catch (e) {
     console.error("[SERVER] CHLOP_ERROR:", e);
+    
+    // Логирование ошибки
+    const errorLog = await logGameAction(gameId, {
+      playerId,
+      action: 'chlop_error',
+      details: { error: e.message }
+    });
+    
+    if (errorLog) await broadcastLogUpdate(io, gameId, errorLog);
   }
 };

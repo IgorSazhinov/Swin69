@@ -1,36 +1,113 @@
 import { calculateNextTurn, generateInstanceId } from "../../game-engine.mjs";
 import { getFullGameState, prisma } from "../../game-service.mjs";
 import { broadcastFullState } from "../broadcaster.mjs";
+import { logGameAction } from "../../game-log-service.mjs"; // НОВЫЙ ИМПОРТ
 
 export const handleConfirmDraw = async (io, socket, data) => {
   const { gameId, playerId, action, chosenColor } = data;
+  
   try {
     const state = await getFullGameState(gameId);
     if (!state || state.currentPlayerId !== String(playerId)) return;
+    
+    const player = state.game.players.find(p => String(p.id) === String(playerId));
+    if (!player) return;
 
     let deck = JSON.parse(state.game.deck || "[]");
     const drawnCardRaw = deck.shift();
+    
     if (!drawnCardRaw) return;
 
     if (action === 'play') {
-      const { nextIndex, nextDirection } = calculateNextTurn(state.game.turnIndex, state.game.direction, state.game.players.length, drawnCardRaw.type);
+      const { nextIndex, nextDirection } = calculateNextTurn(
+        state.game.turnIndex,
+        state.game.direction,
+        state.game.players.length,
+        drawnCardRaw.type
+      );
+      
       let newPenalty = state.game.pendingPenalty + (drawnCardRaw.type === 'khapezh' ? 3 : 0);
-      await prisma.game.update({
-        where: { id: gameId },
-        data: { 
-          currentCard: JSON.stringify({ ...drawnCardRaw, color: chosenColor || drawnCardRaw.color, instanceId: generateInstanceId('confirm') }), 
-          turnIndex: nextIndex, direction: nextDirection, deck: JSON.stringify(deck), pendingPenalty: newPenalty
+      
+      // ЛОГИРОВАНИЕ: Игра карты из предпросмотра
+      await logGameAction(gameId, {
+        playerId,
+        playerName: player.name,
+        action: 'play_preview_card',
+        cardType: drawnCardRaw.type,
+        cardColor: chosenColor || drawnCardRaw.color,
+        details: {
+          fromPreview: true,
+          action: 'play',
+          chosenColor,
+          newPenalty,
+          nextPlayerIndex: nextIndex
         }
       });
-    } else {
-      const player = state.game.players.find(p => String(p.id) === String(playerId));
-      const newHand = [...JSON.parse(player.hand || "[]"), { ...drawnCardRaw, instanceId: generateInstanceId('confirm') }];
+
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          currentCard: JSON.stringify({
+            ...drawnCardRaw,
+            color: chosenColor || drawnCardRaw.color,
+            instanceId: generateInstanceId('confirm')
+          }),
+          turnIndex: nextIndex,
+          direction: nextDirection,
+          deck: JSON.stringify(deck),
+          pendingPenalty: newPenalty
+        }
+      });
+      
+    } else if (action === 'keep') {
+      const currentHand = JSON.parse(player.hand || "[]");
+      const newHand = [...currentHand, {
+        ...drawnCardRaw,
+        instanceId: generateInstanceId('confirm')
+      }];
+      
       const nextIdx = (state.game.turnIndex + state.game.direction + state.game.players.length) % state.game.players.length;
+      
+      // ЛОГИРОВАНИЕ: Сохранение карты из предпросмотра в руку
+      await logGameAction(gameId, {
+        playerId,
+        playerName: player.name,
+        action: 'keep_preview_card',
+        cardType: drawnCardRaw.type,
+        cardColor: drawnCardRaw.color,
+        details: {
+          fromPreview: true,
+          action: 'keep',
+          newHandSize: newHand.length,
+          nextPlayerIndex: nextIdx
+        }
+      });
+
       await prisma.$transaction([
-        prisma.player.update({ where: { id: playerId }, data: { hand: JSON.stringify(newHand) } }),
-        prisma.game.update({ where: { id: gameId }, data: { deck: JSON.stringify(deck), turnIndex: nextIdx } })
+        prisma.player.update({
+          where: { id: playerId },
+          data: { hand: JSON.stringify(newHand) }
+        }),
+        prisma.game.update({
+          where: { id: gameId },
+          data: {
+            deck: JSON.stringify(deck),
+            turnIndex: nextIdx
+          }
+        })
       ]);
     }
+    
     await broadcastFullState(io, gameId);
-  } catch (e) { console.error("CONFIRM_DRAW_ERROR:", e); }
+    
+  } catch (e) {
+    console.error("CONFIRM_DRAW_ERROR:", e);
+    
+    // ЛОГИРОВАНИЕ: Ошибка
+    await logGameAction(gameId, {
+      playerId,
+      action: 'confirm_draw_error',
+      details: { error: e.message }
+    });
+  }
 };

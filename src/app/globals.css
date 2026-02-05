@@ -13,6 +13,11 @@ body {
   min-height: 100vh;
   font-size: 24px;
   line-height: 1.2;
+  
+  /* Убираем возможные трансформации у body */
+  transform: none !important;
+  perspective: none !important;
+  filter: none !important;
 }
 
 input, button {
@@ -23,4 +28,86 @@ input, button {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+}
+
+/* КРИТИЧЕСКО ВАЖНО: Убираем все трансформации у fixed элементов */
+.fixed {
+  position: fixed !important;
+  transform: none !important;
+}
+
+/* Кастомный скроллбар */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(234, 88, 12, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 88, 12, 0.7);
+}
+
+/* Для чата */
+.chat-modal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 88, 12, 0.5) rgba(255, 255, 255, 0.05);
+}
+
+.chat-modal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-modal-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.chat-modal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(234, 88, 12, 0.5);
+  border-radius: 3px;
+}
+
+.chat-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 88, 12, 0.7);
+}
+
+/* Абсолютное позиционирование для fixed элементов */
+.fixed-bottom-right {
+  position: fixed !important;
+  bottom: 32px !important;
+  right: 32px !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  will-change: transform;
+}
+
+/* Сброс для всех потенциально мешающих классов */
+.transform,
+.perspective,
+.filter,
+.backdrop-filter,
+.translate,
+.rotate,
+.scale {
+  position: static !important;
+}
+
+/* Гарантированное fixed позиционирование */
+[class*="fixed"] {
+  position: fixed !important;
+}
+
+/* Убираем overflow: hidden у body если есть */
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
