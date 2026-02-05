@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface Card {
   id: string;
@@ -37,33 +37,52 @@ export const useGameStore = create<GameState>((set) => ({
   topCard: null,
   isMyTurn: false,
   players: [],
-  status: 'LOBBY',
+  status: "LOBBY",
   pendingPenalty: 0,
   direction: 1,
   winnerId: null,
   chloppedPlayerIds: [],
 
   setHand: (cards) => set({ hand: [...cards] }),
-  
-  playCardOptimistic: (cardId) => set((state) => ({
-    hand: state.hand.filter(c => c.id !== cardId),
-    isMyTurn: false 
-  })),
 
-  setChlopped: (playerId) => set((state) => ({
-    chloppedPlayerIds: [...state.chloppedPlayerIds, playerId]
-  })),
+  playCardOptimistic: (cardId) =>
+    set((state) => ({
+      hand: state.hand.filter((c) => c.id !== cardId),
+      isMyTurn: false,
+    })),
+
+  setChlopped: (playerId) =>
+    set((state) => ({
+      chloppedPlayerIds: [...state.chloppedPlayerIds, playerId],
+    })),
 
   updateTable: (data, myId) => {
-    set({
-      topCard: data.card && (data.card.id || data.card.type) ? data.card : null,
-      isMyTurn: String(data.nextPlayerId) === String(myId),
-      players: data.allPlayers || [],
+    console.log("[STORE] updateTable:", {
       status: data.status,
-      pendingPenalty: Number(data.pendingPenalty) || 0,
-      direction: data.direction || 1,
-      winnerId: data.winnerId || null,
-      chloppedPlayerIds: data.status === 'CHLOPKOPIT' ? (data.chloppedPlayerIds || []) : []
+      nextPlayerId: data.nextPlayerId,
+      myId: myId,
     });
+
+    set({
+      topCard: data.card,
+      players: data.allPlayers || [],
+      status: data.status || "PLAYING", // ← Вот здесь обновляем статус!
+      winnerId: data.winnerId,
+      direction: data.direction || 1,
+      pendingPenalty: data.pendingPenalty || 0,
+      chloppedPlayerIds: data.chloppedPlayerIds || [],
+    });
+
+    // Проверяем, является ли текущий игрок следующим
+    const isMyTurn = String(myId) === String(data.nextPlayerId);
+    console.log(
+      "[STORE] isMyTurn:",
+      isMyTurn,
+      "myId:",
+      myId,
+      "nextPlayerId:",
+      data.nextPlayerId,
+    );
+    set({ isMyTurn });
   },
 }));

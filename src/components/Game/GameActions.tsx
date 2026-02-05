@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/Card";
 import { useGameStore } from "@/store/useGameStore";
-import { formatCardsLabel  } from "@/lib/utils";
+import { formatCardsLabel } from "@/lib/utils";
 
 interface GameActionsProps {
   status: string;
@@ -63,17 +63,23 @@ export const GameActions = ({
         )}
 
         {/* ХЛОПКОПЫТ */}
-        {status === 'CHLOPKOPIT' && (
-          <motion.div 
+        {status === "CHLOPKOPIT" && (
+          <motion.div
             key="chlopkopit-state"
-            initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.5, opacity: 0 }}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 1.5, opacity: 0 }}
             className="w-full max-w-[360px] bg-orange-600 py-[10px] px-8 rounded-[60px] border-[6px] border-white shadow-2xl flex flex-col items-center z-50"
           >
-            <span className="text-6xl mb-2 animate-bounce">🐷</span>
-            <h2 className="text-white font-black text-4xl uppercase italic mb-1 leading-none">ХЛОПКОПЫТ!</h2>
-            <p className="text-white/80 font-bold text-sm mb-6 uppercase">Жми на стол!</p>
-            <button 
-              onClick={() => onAction('chlop')}
+            <span className="text-6xl mb-2 animate-bounce">👏</span>
+            <h2 className="text-white font-black text-4xl uppercase italic mb-1 leading-none">
+              ХЛОПКОПЫТ!
+            </h2>
+            <p className="text-white/80 font-bold text-sm mb-6 uppercase">
+              Кто не хлопнет - получит 2 карты!
+            </p>
+            <button
+              onClick={() => onAction("chlop")}
               className="w-[220px] py-6 bg-white text-orange-600 rounded-[35px] font-black uppercase text-3xl shadow-[0_10px_0_#ddd] active:shadow-none active:translate-y-[10px] transition-all"
             >
               ХЛОП!

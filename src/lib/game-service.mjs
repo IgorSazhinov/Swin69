@@ -6,49 +6,63 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export const getFullGameState = async (gameId) => {
-  let game = await prisma.game.findUnique({
-    where: { id: gameId },
-    include: {
-      players: {
-        orderBy: { order: "asc" },
-      },
-    },
-  });
-
-  if (!game) return null;
-
-  if (game.players.length >= 2 && game.status === "LOBBY") {
-    game = await prisma.game.update({
-      where: { id: gameId },
-      data: { status: "PLAYING", turnIndex: 0 },
-      include: { players: { orderBy: { order: "asc" } } },
+    let game = await prisma.game.findUnique({
+        where: { id: gameId },
+        include: {
+            players: {
+                orderBy: { order: "asc" },
+            },
+        },
     });
-  }
 
-  // ПАРСИНГ ХЛОПКОВ
-  const chloppedPlayerIds = JSON.parse(game.chloppedPlayerIds || "[]");
+    if (!game) return null;
 
-  const playersInfo = game.players.map((p) => ({
-    id: String(p.id),
-    name: p.name,
-    order: p.order,
-    cardCount: JSON.parse(p.hand || "[]").length,
-    // Чтобы индикатор хода не пропадал во время хлопка
-    isTurn:
-      p.order === game.turnIndex &&
-      (game.status === "PLAYING" || game.status === "CHLOPKOPIT"),
-  }));
+    // Автостарт игры при 2+ игроках
+    if (game.players.length >= 2 && game.status === "LOBBY") {
+        game = await prisma.game.update({
+            where: { id: gameId },
+            data: {
+                status: "PLAYING",
+                turnIndex: 0
+            },
+            include: {
+                players: {
+                    orderBy: { order: "asc" }
+                }
+            },
+        });
+    }
 
-  const currentPlayer = game.players.find((p) => p.order === game.turnIndex);
+    const chloppedPlayerIds = JSON.parse(game.chloppedPlayerIds || "[]");
+    
+    const playersInfo = game.players.map((p) => ({
+        id: String(p.id),
+        name: p.name,
+        order: p.order,
+        cardCount: JSON.parse(p.hand || "[]").length,
+        // Важно: isTurn должен учитывать статус CHLOPKOPIT
+        isTurn: p.order === game.turnIndex && 
+               (game.status === "PLAYING" || game.status === "CHLOPKOPIT"),
+    }));
 
-  return {
-    game: {
-      ...game,
-      chloppedPlayerIds,
-    },
-    playersInfo,
-    currentPlayerId: currentPlayer ? String(currentPlayer.id) : null,
-  };
+    const currentPlayer = game.players.find((p) => p.order === game.turnIndex);
+    
+    console.log("[GET_FULL_GAME_STATE] Возвращаем состояние:", {
+        gameId,
+        status: game.status,
+        turnIndex: game.turnIndex,
+        currentPlayer: currentPlayer?.name,
+        players: playersInfo.map(p => ({ name: p.name, isTurn: p.isTurn }))
+    });
+
+    return {
+        game: {
+            ...game,
+            chloppedPlayerIds,
+        },
+        playersInfo,
+        currentPlayerId: currentPlayer ? String(currentPlayer.id) : null,
+    };
 };
 
 export const executeTakePenalty = async (gameId, playerId) => {
