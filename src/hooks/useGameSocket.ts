@@ -1,19 +1,19 @@
-import { useEffect, useRef } from 'react';
-import { io, type Socket } from 'socket.io-client';
-import { useGameStore } from '@/store/useGameStore';
+import { useEffect, useRef } from "react";
+import { io, type Socket } from "socket.io-client";
+import { useGameStore } from "@/store/useGameStore";
 
 export const useGameSocket = (
-  gameId: string, 
-  playerId: string, 
+  gameId: string,
+  playerId: string,
   updateTable: (data: any, myId: string) => void,
-  onPreview: (card: any) => void
+  onPreview: (card: any) => void,
 ) => {
   const socketRef = useRef<Socket | null>(null);
   const { setHand, setChlopped } = useGameStore(); // Добавили setChlopped
 
   useEffect(() => {
     if (!gameId || !playerId) return;
-    
+
     socketRef.current = io();
     const socket = socketRef.current;
 
@@ -34,20 +34,26 @@ export const useGameSocket = (
 
     // Добавили слушатель для галочек Хлопкопыта
     socket.on("player_chlopped", ({ playerId: chloppedId }: any) => {
+      console.log("[SOCKET] Player chlopped:", chloppedId);
       setChlopped(chloppedId);
     });
-
+    
     socket.on("start_khlopkopit", (data: any) => {
       console.log("ХЛОПКОПЫТ МОМЕНТ!");
     });
 
-    return () => { 
-      socket.disconnect(); 
+    return () => {
+      socket.disconnect();
     };
   }, [gameId, playerId, updateTable, setHand, setChlopped, onPreview]);
 
   const sendCard = (card: any, chosenColor?: string) => {
-    socketRef.current?.emit("play_card", { gameId, card, playerId, chosenColor });
+    socketRef.current?.emit("play_card", {
+      gameId,
+      card,
+      playerId,
+      chosenColor,
+    });
   };
 
   const drawCard = () => {
@@ -58,8 +64,13 @@ export const useGameSocket = (
     socketRef.current?.emit("take_penalty", { gameId, playerId });
   };
 
-  const confirmDraw = (action: 'play' | 'keep', chosenColor?: string) => {
-    socketRef.current?.emit("confirm_draw", { gameId, playerId, action, chosenColor });
+  const confirmDraw = (action: "play" | "keep", chosenColor?: string) => {
+    socketRef.current?.emit("confirm_draw", {
+      gameId,
+      playerId,
+      action,
+      chosenColor,
+    });
   };
 
   // ЭТОЙ ФУНКЦИИ НЕ ХВАТАЛО

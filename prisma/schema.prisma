@@ -1,61 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Game {
-  id                 String        @id @default(cuid())
-  status             String        @default("LOBBY")
-  deck               String        @default("[]")
-  discardPile        String        @default("[]")
-  currentCard        String?
-  direction          Int           @default(1)
-  turnIndex          Int           @default(0)
-  pendingPenalty     Int           @default(0)
-  winnerId           String?
-  chloppedPlayerIds  String        @default("[]")
-  createdAt          DateTime      @default(now())
-  players            Player[]
-  gameLogs           GameLog[]     @relation("GameToGameLog")
-  chatMessages       ChatMessage[] @relation("GameToChatMessage")
+  id                String        @id @default(cuid())
+  status            String        @default("LOBBY")
+  deck              String        @default("[]")
+  discardPile       String        @default("[]")
+  currentCard       String?
+  direction         Int           @default(1)
+  turnIndex         Int           @default(0)
+  pendingPenalty    Int           @default(0)
+  winnerId          String?
+  chloppedPlayerIds String        @default("[]")
+  createdAt         DateTime      @default(now())
+  chatMessages      ChatMessage[] @relation("GameToChatMessage")
+  gameLogs          GameLog[]     @relation("GameToGameLog")
+  players           Player[]
 }
 
 model Player {
-  id                 String        @id @default(cuid())
-  name               String
-  hand               String        @default("[]")
-  order              Int
-  gameId             String
-  game               Game          @relation(fields: [gameId], references: [id])
-  gameLogs           GameLog[]     @relation("PlayerToGameLog")
-  chatMessages       ChatMessage[] @relation("PlayerToChatMessage")
+  id           String        @id @default(cuid())
+  name         String
+  hand         String        @default("[]")
+  order        Int
+  gameId       String
+  chatMessages ChatMessage[] @relation("PlayerToChatMessage")
+  gameLogs     GameLog[]     @relation("PlayerToGameLog")
+  game         Game          @relation(fields: [gameId], references: [id])
 }
 
 model GameLog {
-  id                 String        @id @default(cuid())
-  gameId             String
-  playerId           String?
-  playerName         String?
-  action             String
-  cardType           String?
-  cardColor          String?
-  details            String?
-  timestamp          DateTime      @default(now())
-  game               Game          @relation("GameToGameLog", fields: [gameId], references: [id])
-  player             Player?       @relation("PlayerToGameLog", fields: [playerId], references: [id])
+  id         String   @id @default(cuid())
+  gameId     String
+  playerId   String?
+  playerName String?
+  action     String
+  cardType   String?
+  cardColor  String?
+  details    String?
+  timestamp  DateTime @default(now())
+  player     Player?  @relation("PlayerToGameLog", fields: [playerId], references: [id])
+  game       Game     @relation("GameToGameLog", fields: [gameId], references: [id])
 }
 
 model ChatMessage {
-  id                 String        @id @default(cuid())
-  gameId             String
-  playerId           String
-  playerName         String
-  message            String
-  timestamp          DateTime      @default(now())
-  game               Game          @relation("GameToChatMessage", fields: [gameId], references: [id])
-  player             Player        @relation("PlayerToChatMessage", fields: [playerId], references: [id])
+  id         String   @id @default(cuid())
+  gameId     String
+  playerId   String
+  playerName String
+  message    String
+  timestamp  DateTime @default(now())
+  player     Player   @relation("PlayerToChatMessage", fields: [playerId], references: [id])
+  game       Game     @relation("GameToChatMessage", fields: [gameId], references: [id])
 }
